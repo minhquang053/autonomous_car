@@ -3,6 +3,7 @@ import threading
 import numpy as np
 import time
 from inference import get_roboflow_model
+MODEL = get_roboflow_model(model_id="car_11_4/5", api_key="hCR4jqAHhoEQhXUytxsJ")   
 
 tracker_types = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'CSRT', 'MOSSE']
 tracker_type = tracker_types[2]
@@ -26,10 +27,7 @@ class CameraBufferCleanerThread(threading.Thread):
 
 class VideoProcessor:
     def __init__(self, host):
-        self.model = get_roboflow_model(
-            model_id="car_11_4/5", # Roboflow model to use
-            api_key="hCR4jqAHhoEQhXUytxsJ"
-        )   
+        self.model = MODEL
         self.cap = cv2.VideoCapture(f"rtsp://{host}:8554/video_stream")
         self.cam_cleaner = CameraBufferCleanerThread(self.cap)
     

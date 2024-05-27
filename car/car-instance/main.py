@@ -22,7 +22,10 @@ def manual(data):
 def auto(data): 
     # action to avoid obstacle
     distances = ultrasonic.measure_distances()
-    oa_action = greedy_policy(Qtable_rlcar, get_sensor_values(distances, data))
+    state = get_sensor_values(distances, data)
+    oa_action = greedy_policy(Qtable_rlcar, state)
+    print(tcp_conn_thread.data)
+    print(state, oa_action)
     if all(d < 10 for d in distances):
         car.stop()
     elif oa_action == 0: 
@@ -62,20 +65,22 @@ try:
             # check for current control mode
             if 'manual' in tcp_conn_thread.data:
                 CONTROL_MODE = 1
-            elif 'auto' or 'tracking' in tcp_conn_thread.data:
+            elif 'auto' or 'tracking' or 'detecting' in tcp_conn_thread.data:
                 CONTROL_MODE = 2
             elif 'shutdown' in tcp_conn_thread.data:
+                print("Shutting down") 
                 break
-            else:
-                # take action based on control mode
-                if CONTROL_MODE == 1:
-                    manual(tcp_conn_thread.data)
-                elif CONTROL_MODE == 2: 
-                    auto(tcp_conn_thread.data)
+
+            # take action based on control mode
+            if CONTROL_MODE == 1:
+                manual(tcp_conn_thread.data)
+            elif CONTROL_MODE == 2: 
+                auto(tcp_conn_thread.data)
         else:
             auto('')
 finally:
-    print("Shutting down")
+    tcp_conn_thread.connected = False
+    tcp_conn_thread.running = False
     tcp_conn_thread.join()
     car.shutdown()
     rtsp_stream.terminate()

@@ -69,7 +69,8 @@ class TcpConnThread(threading.Thread):
                         if "disconnect" in self.data:
                             self.connected = False
                         elif "shutdown" in self.data:
-                            self.connected = False
+                            self.running = False
+                            break
 
                 self.conn = None
                 self.connected = False
