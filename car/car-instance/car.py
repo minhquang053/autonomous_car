@@ -1,8 +1,14 @@
-import RPi.GPIO as GPIO 
+import RPi.GPIO as GPIO
 import time
- 
+
+FORWARD_PWM = 60
+BACKWARD_PWM = 50
+LEFT_PWM = 120
+RIGHT_PWM = 120
+
 class Car(object):
-    def __init__(self,in1=13,in2=12,ena=6,in3=21,in4=20,enb=26, trig_1=17, echo_1=18, trig_2=23, echo_2=5, trig_3=27, echo_3=22,trig_4=4,echo_4=25,trig_5=16,echo_5=19):
+    def __init__(self, in1=13, in2=12, ena=6, in3=21, in4=20, enb=26, trig_1=17, echo_1=18, trig_2=23, echo_2=5,
+                 trig_3=27, echo_3=22, trig_4=4, echo_4=25, trig_5=16, echo_5=19):
         self.IN1 = in1
         self.IN2 = in2
         self.IN3 = in3
@@ -24,13 +30,13 @@ class Car(object):
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
-        GPIO.setup(self.IN1,GPIO.OUT)
-        GPIO.setup(self.IN2,GPIO.OUT)
-        GPIO.setup(self.IN3,GPIO.OUT)
-        GPIO.setup(self.IN4,GPIO.OUT)
-        GPIO.setup(self.ENA,GPIO.OUT)
-        GPIO.setup(self.ENB,GPIO.OUT)
-        
+        GPIO.setup(self.IN1, GPIO.OUT)
+        GPIO.setup(self.IN2, GPIO.OUT)
+        GPIO.setup(self.IN3, GPIO.OUT)
+        GPIO.setup(self.IN4, GPIO.OUT)
+        GPIO.setup(self.ENA, GPIO.OUT)
+        GPIO.setup(self.ENB, GPIO.OUT)
+
         # set up for HC-SR04-1
         GPIO.setup(self.ECHO_1, GPIO.IN)
         GPIO.setup(self.TRIG_1, GPIO.OUT)
@@ -39,113 +45,122 @@ class Car(object):
         GPIO.setup(self.TRIG_2, GPIO.OUT)
         # set up for HC-SR04-3
         GPIO.setup(self.ECHO_3, GPIO.IN)
-        GPIO.setup(self.TRIG_3, GPIO.OUT)  
+        GPIO.setup(self.TRIG_3, GPIO.OUT)
         # set up for HC-SR04-4
         GPIO.setup(self.ECHO_4, GPIO.IN)
         GPIO.setup(self.TRIG_4, GPIO.OUT)
         # set up for HC-SR04-5
         GPIO.setup(self.ECHO_5, GPIO.IN)
-        GPIO.setup(self.TRIG_5, GPIO.OUT) 
- 
+        GPIO.setup(self.TRIG_5, GPIO.OUT)
+
         self.stop()
         self.is_shutdown = False
- 
-        self.PWMA = GPIO.PWM(self.ENA,500)
-        self.PWMB = GPIO.PWM(self.ENB,500)
- 
+
+        self.PWMA = GPIO.PWM(self.ENA, 1000)
+        self.PWMB = GPIO.PWM(self.ENB, 1000)
+
     def SR04(self):
-        trigs=  [self.TRIG_3, self.TRIG_4, self.TRIG_2, self.TRIG_5, self.TRIG_1]
-        echos= [self.ECHO_3, self.ECHO_4, self.ECHO_2, self.ECHO_5, self.ECHO_1]
+        trigs = [self.TRIG_5, self.TRIG_1, self.TRIG_3, self.TRIG_2, self.TRIG_4]
+        echos = [self.ECHO_5, self.ECHO_1, self.ECHO_3, self.ECHO_2, self.ECHO_4]
         distances = [100, 100, 100, 100, 100]
         for i in range(5):
-            #print("i:::",i) 
-            trig = trigs[i]
-            echo = echos[i]
-            GPIO.output(trig, GPIO.LOW)
-            time.sleep(0.01)
-            GPIO.output(trig, GPIO.HIGH)
-            time.sleep(0.02)
-            GPIO.output(trig, GPIO.LOW)
+            distances[i] = self.get_distance(trigs[i], echos[i])
 
-            while GPIO.input(echo) == 0:
-                start = time.time()
-            while GPIO.input(echo) == 1:
-                stop = time.time()
-
-            # calculator
-            elapsed = stop - start
-            stop = time.time()
-            # v (cm/s)
-            distance = elapsed * 34000
-            distance = distance / 2
-            distances[i] = distance - 2
-            
         return distances
 
+    def get_distance(self, trig, echo):
+        PULSE_TIME = 0.0001  # 0.1ms
+
+        GPIO.output(trig, GPIO.LOW) # ensure the trigger is off
+        time.sleep(0.1)
+        GPIO.output(trig, GPIO.HIGH)
+        time.sleep(PULSE_TIME)
+        GPIO.output(trig, GPIO.LOW)
+
+        start = time.time()
+        attempt = 0
+        MAX_ATTEMPT = 100
+        while GPIO.input(echo) == GPIO.LOW:
+            start = time.time()
+            attempt += 1
+            if attempt > MAX_ATTEMPT:
+                break
+        attempt = 0
+        stop = time.time()
+        while GPIO.input(echo) == GPIO.HIGH:
+            stop = time.time()
+            attempt += 1
+            if attempt > MAX_ATTEMPT:
+                break
+
+        # calculator
+        elapsed = stop - start
+        stop = time.time()
+        # v (cm/s)
+        distance = elapsed * 34300
+        distance = distance / 2
+        return distance - 2
+
     def forward(self):
-        self.PWMA.start(30)
-        self.PWMB.start(30)
-        GPIO.output(self.IN1,GPIO.HIGH) # Tien_phai
-        GPIO.output(self.IN2,GPIO.LOW) # Lui_phai
-        GPIO.output(self.IN3,GPIO.HIGH) # Tien_trai
-        GPIO.output(self.IN4,GPIO.LOW) # Lui_trai
- 
- 
- 
+        self.PWMA.start(FORWARD_PWM)
+        self.PWMB.start(FORWARD_PWM)
+        GPIO.output(self.IN1, GPIO.HIGH)  # Tien_phai
+        GPIO.output(self.IN2, GPIO.LOW)  # Lui_phai
+        GPIO.output(self.IN3, GPIO.HIGH)  # Tien_trai
+        GPIO.output(self.IN4, GPIO.LOW)  # Lui_trai
+
     def stop(self):
-        GPIO.output(self.IN1,GPIO.LOW)
-        GPIO.output(self.IN2,GPIO.LOW)
-        GPIO.output(self.IN3,GPIO.LOW)
-        GPIO.output(self.IN4,GPIO.LOW)
- 
- 
- 
+        GPIO.output(self.IN1, GPIO.LOW)
+        GPIO.output(self.IN2, GPIO.LOW)
+        GPIO.output(self.IN3, GPIO.LOW)
+        GPIO.output(self.IN4, GPIO.LOW)
+
     def backward(self):
-        self.PWMA.start(30)
-        self.PWMB.start(30)
-        GPIO.output(self.IN1,GPIO.LOW)
-        GPIO.output(self.IN2,GPIO.HIGH)
-        GPIO.output(self.IN3,GPIO.LOW)
-        GPIO.output(self.IN4,GPIO.HIGH)
+        self.PWMA.start(BACKWARD_PWM)
+        self.PWMB.start(BACKWARD_PWM)
+        GPIO.output(self.IN1, GPIO.LOW)
+        GPIO.output(self.IN2, GPIO.HIGH)
+        GPIO.output(self.IN3, GPIO.LOW)
+        GPIO.output(self.IN4, GPIO.HIGH)
 
     def left(self):
-        self.PWMA.start(60)
-        self.PWMB.start(60)
-        GPIO.output(self.IN1,GPIO.LOW)
-        GPIO.output(self.IN2,GPIO.LOW)
-        GPIO.output(self.IN3,GPIO.HIGH)
-        GPIO.output(self.IN4,GPIO.LOW)
- 
+        self.PWMA.start(LEFT_PWM)
+        self.PWMB.start(LEFT_PWM)
+        GPIO.output(self.IN1, GPIO.LOW)
+        GPIO.output(self.IN2, GPIO.HIGH)
+        GPIO.output(self.IN3, GPIO.HIGH)
+        GPIO.output(self.IN4, GPIO.LOW)
+
     def right(self):
-        self.PWMA.start(60)
-        self.PWMB.start(60)
-        GPIO.output(self.IN1,GPIO.HIGH)
-        GPIO.output(self.IN2,GPIO.LOW)
-        GPIO.output(self.IN3,GPIO.LOW)
-        GPIO.output(self.IN4,GPIO.LOW)
- 
-    def setPWMA(self,value):
+        self.PWMA.start(RIGHT_PWM)
+        self.PWMB.start(RIGHT_PWM)
+        GPIO.output(self.IN1, GPIO.HIGH)
+        GPIO.output(self.IN2, GPIO.LOW)
+        GPIO.output(self.IN3, GPIO.LOW)
+        GPIO.output(self.IN4, GPIO.HIGH)
+
+    def setPWMA(self, value):
         self.PWMA.ChangeDutyCycle(value)
- 
-    def setPWMB(self,value):
-        self.PWMB.ChangeDutyCycle(value)   
- 
+
+    def setPWMB(self, value):
+        self.PWMB.ChangeDutyCycle(value)
+
     def setMotor(self, left, right):
-        if((right >= 0) and (right <= 100)):
-            GPIO.output(self.IN1,GPIO.HIGH)
-            GPIO.output(self.IN2,GPIO.LOW)
+        if ((right >= 0) and (right <= 100)):
+            GPIO.output(self.IN1, GPIO.HIGH)
+            GPIO.output(self.IN2, GPIO.LOW)
             self.PWMA.ChangeDutyCycle(right)
-        elif((right < 0) and (right >= -100)):
-            GPIO.output(self.IN1,GPIO.LOW)
-            GPIO.output(self.IN2,GPIO.HIGH)
+        elif ((right < 0) and (right >= -100)):
+            GPIO.output(self.IN1, GPIO.LOW)
+            GPIO.output(self.IN2, GPIO.HIGH)
             self.PWMA.ChangeDutyCycle(0 - right)
-        if((left >= 0) and (left <= 100)):
-            GPIO.output(self.IN3,GPIO.HIGH)
-            GPIO.output(self.IN4,GPIO.LOW)
+        if ((left >= 0) and (left <= 100)):
+            GPIO.output(self.IN3, GPIO.HIGH)
+            GPIO.output(self.IN4, GPIO.LOW)
             self.PWMB.ChangeDutyCycle(left)
-        elif((left < 0) and (left >= -100)):
-            GPIO.output(self.IN3,GPIO.LOW)
-            GPIO.output(self.IN4,GPIO.HIGH)
+        elif ((left < 0) and (left >= -100)):
+            GPIO.output(self.IN3, GPIO.LOW)
+            GPIO.output(self.IN4, GPIO.HIGH)
             self.PWMB.ChangeDutyCycle(0 - left)
 
     def shutdown(self):

@@ -59,8 +59,8 @@ try:
     while tcp_conn_thread.running:
         if rtsp_stream.poll():
             print("RTSP stream stopped")
-            tcp_conn_thread.running = False
-            break
+            #tcp_conn_thread.running = False
+            #break
         if tcp_conn_thread.connected:
             # check for current control mode
             if 'manual' in tcp_conn_thread.data:
